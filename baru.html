@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SW-LIB ULTIMATE | Professional Library Management</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #059669;
+            --secondary: #0f172a;
+            --accent: #3b82f6;
+            --glass-bg: rgba(255, 255, 255, 0.8);
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #f3f4f6;
+            color: #1e293b;
+            overflow: hidden;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Custom Animations */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide { animation: slideUp 0.5s ease forwards; }
+
+        /* Neumorphic Sidebar */
+        .nav-link {
+            @apply flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 font-semibold text-slate-400 hover:text-emerald-500;
+        }
+        .nav-link.active {
+            @apply bg-emerald-600 text-white shadow-xl shadow-emerald-600/30 !important;
+        }
+
+        /* Glassmorphism Cards */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.05);
+        }
+
+        /* Modern Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Input Custom */
+        .sw-input {
+            @apply w-full bg-white/50 border border-slate-200 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-semibold;
+        }
+
+        /* QR Container Styling */
+        #qrcode img {
+            @apply mx-auto p-4 bg-white rounded-3xl border-4 border-slate-50 shadow-inner;
+        }
+
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body x-data="swLibrary()" x-init="initSystem()">
+
+    <template x-if="!auth.isLoggedIn">
+        <div class="fixed inset-0 z-[999] bg-[#020617] flex items-center justify-center p-6 overflow-hidden">
+            <div class="absolute w-[800px] h-[800px] bg-emerald-600/10 rounded-full blur-[120px] -top-96 -left-96"></div>
+            <div class="absolute w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[100px] -bottom-48 -right-48"></div>
+
+            <div class="w-full max-w-lg glass-card p-12 rounded-[3.5rem] relative z-10 animate-slide">
+                <div class="text-center mb-10">
+                    <div class="w-24 h-24 bg-emerald-600 rounded-[2.5rem] mx-auto mb-8 flex items-center justify-center shadow-2xl rotate-6 transform hover:rotate-0 transition duration-500">
+                        <span class="text-white text-4xl font-black italic">SW</span>
+                    </div>
+                    <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">KONTROL SISTEM</h1>
+                    <p class="text-slate-400 text-sm mt-2 font-medium">E-Library Mechatronics Academic Center</p>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="space-y-2">
+                        <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-4">Identity ID</label>
+                        <input type="text" x-model="auth.userId" class="sw-input text-lg pl-6" placeholder="Masukkan ID Operator">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-4">Security Key</label>
+                        <input type="password" x-model="auth.password" class="sw-input text-lg pl-6" placeholder="••••••••">
+                    </div>
+                    <button @click="login()" class="w-full py-5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-3xl shadow-2xl shadow-emerald-600/30 transition-all active:scale-95 text-lg tracking-wide mt-4">
+                        MASUK KE TERMINAL
+                    </button>
+                    <div class="flex justify-center items-center gap-3 pt-6 text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                        Sistem Terenkripsi AES-256
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <div class="flex h-screen overflow-hidden" x-show="auth.isLoggedIn" x-cloak>
+        
+        <aside class="w-80 bg-white border-r border-slate-200 flex flex-col p-8 z-50">
+            <div class="flex items-center gap-4 mb-16 px-2">
+                <div class="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center font-black text-2xl text-white shadow-lg">S</div>
+                <div>
+                    <h2 class="font-black text-xl text-slate-800 tracking-tighter">SW-LIB</h2>
+                    <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Digital Core v5.0</p>
+                </div>
+            </div>
+
+            <nav class="flex-1 space-y-3 overflow-y-auto pr-2 custom-scroll">
+                <p class="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-6 ml-4">Menu Utama</p>
+                
+                <button @click="page = 'dashboard'" :class="page === 'dashboard' ? 'active' : ''" class="nav-link w-full">
+                    <span class="text-2xl">⚡</span> <span>Dashboard</span>
+                </button>
+                
+                <button @click="page = 'sirkulasi'" :class="page === 'sirkulasi' ? 'active' : ''" class="nav-link w-full">
+                    <span class="text-2xl">📋</span> <span>Peminjaman Buku</span>
+                </button>
+
+                <button @click="page = 'input-buku'" :class="page === 'input-buku' ? 'active' : ''" class="nav-link w-full">
+                    <span class="text-2xl">📥</span> <span>Input Koleksi</span>
+                </button>
+
+                <button @click="initScanner()" :class="page === 'scanner' ? 'active' : ''" class="nav-link w-full">
+                    <span class="text-2xl">🔍</span> <span>Scanner QR</span>
+                </button>
+
+                <button @click="page = 'database'" :class="page === 'database' ? 'active' : ''" class="nav-link w-full">
+                    <span class="text-2xl">💾</span> <span>Database Buku</span>
+                </button>
+
+                <div class="pt-10">
+                    <p class="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-6 ml-4">Laporan & Audit</p>
+                    <button @click="page = 'analisis'" :class="page === 'analisis' ? 'active' : ''" class="nav-link w-full">
+                        <span class="text-2xl">📊</span> <span>Analisis Data</span>
+                    </button>
+                    <button @click="page = 'logs'" :class="page === 'logs' ? 'active' : ''" class="nav-link w-full">
+                        <span class="text-2xl">📜</span> <span>Aktivitas</span>
+                    </button>
+                </div>
+            </nav>
+
+            <div class="mt-8 pt-8 border-t border-slate-100">
+                <div class="bg-slate-50 p-5 rounded-[2rem] flex items-center gap-4 mb-6">
+                    <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center font-black text-slate-800 shadow-sm border border-slate-100" x-text="auth.user[0].toUpperCase()"></div>
+                    <div class="overflow-hidden">
+                        <p class="text-sm font-black text-slate-800 truncate capitalize" x-text="auth.user"></p>
+                        <span class="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Authorized</span>
+                    </div>
+                </div>
+                <button @click="logout()" class="w-full py-4 text-rose-500 font-bold text-xs uppercase tracking-widest hover:bg-rose-50 rounded-2xl transition-all">Keluar Sistem</button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col relative bg-[#f8fafc] overflow-hidden">
+            
+            <header class="h-28 px-12 flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-40">
+                <div class="flex items-center gap-6">
+                    <div class="p-4 bg-slate-50 rounded-2xl">
+                        <span class="text-3xl" x-text="getIcon(page)"></span>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-black text-slate-800 tracking-tighter capitalize" x-text="page.replace('-', ' ')"></h2>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-1">Operational Module Terminal</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-10">
+                    <div class="hidden lg:block text-right border-r pr-10 border-slate-200">
+                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-1" x-text="currentTimeStr"></p>
+                        <p class="text-2xl font-black text-slate-700 mono leading-none" id="realtime-clock">00:00:00</p>
+                    </div>
+                    <div class="flex items-center gap-6">
+                        <div class="relative cursor-pointer group">
+                            <span class="text-2xl opacity-40 group-hover:opacity-100 transition">🔔</span>
+                            <span class="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 border-4 border-white rounded-full flex items-center justify-center text-[8px] font-bold text-white">5</span>
+                        </div>
+                        <button class="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-emerald-600 transition duration-500">Sync Cloud</button>
+                    </div>
+                </div>
+            </header>
+
+            <section class="flex-1 overflow-y-auto p-12 custom-scroll relative">
+                
+                <div x-show="page === 'dashboard'" class="animate-slide space-y-12">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        <template x-for="stat in getStats()">
+                            <div class="glass-card p-10 rounded-[3rem] group hover:scale-[1.03] transition-all duration-500">
+                                <div class="flex justify-between items-start mb-8">
+                                    <div :class="stat.bg" class="w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-3xl shadow-lg shadow-black/5" x-text="stat.icon"></div>
+                                    <div class="text-right">
+                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest" x-text="stat.label"></p>
+                                        <h4 class="text-4xl font-black text-slate-800 mt-1" x-text="stat.value"></h4>
+                                    </div>
+                                </div>
+                                <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div :class="stat.color" class="h-full rounded-full transition-all duration-1000" :style="`width: ${stat.percent}%`"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-12 gap-10">
+                        <div class="xl:col-span-8 glass-card p-12 rounded-[4rem]">
+                            <div class="flex items-center justify-between mb-12">
+                                <div>
+                                    <h3 class="text-2xl font-black text-slate-800 tracking-tight">Pergerakan Koleksi</h3>
+                                    <p class="text-sm text-slate-400 font-medium">Visualisasi sirkulasi buku 7 hari terakhir</p>
+                                </div>
+                                <div class="flex bg-slate-50 p-1.5 rounded-2xl gap-2">
+                                    <button class="px-5 py-2.5 bg-white text-emerald-600 rounded-xl text-xs font-black shadow-sm">MINGGUAN</button>
+                                    <button class="px-5 py-2.5 text-slate-400 rounded-xl text-xs font-black">BULANAN</button>
+                                </div>
+                            </div>
+                            <div class="h-[450px]">
+                                <canvas id="chartDashboard"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="xl:col-span-4 glass-card p-12 rounded-[4rem] flex flex-col">
+                            <h3 class="text-2xl font-black text-slate-800 mb-10 tracking-tight">Log Terbaru</h3>
+                            <div class="flex-1 space-y-8 overflow-y-auto pr-4 custom-scroll max-h-[500px]">
+                                <template x-for="log in db.logs.slice().reverse().slice(0, 10)">
+                                    <div class="flex gap-6 relative group">
+                                        <div class="relative z-10">
+                                            <div class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-xl group-hover:scale-110 transition duration-300" x-text="log.icon"></div>
+                                            <div class="absolute top-12 left-1/2 -translate-x-1/2 w-px h-full bg-slate-100 group-last:hidden"></div>
+                                        </div>
+                                        <div class="flex-1 pt-1">
+                                            <p class="text-[13px] font-bold text-slate-700 leading-snug" x-text="log.msg"></p>
+                                            <div class="flex items-center gap-3 mt-2">
+                                                <span class="text-[9px] font-black text-emerald-500 uppercase tracking-widest" x-text="log.time"></span>
+                                                <span class="w-1 h-1 bg-slate-200 rounded-full"></span>
+                                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">System OK</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="page === 'sirkulasi'" class="animate-slide max-w-6xl mx-auto space-y-12">
+                    <div class="glass-card p-16 rounded-[4rem] relative overflow-hidden">
+                        <div class="absolute -top-16 -right-16 opacity-[0.02] rotate-12 pointer-events-none">
+                            <span class="text-[300px] font-black italic tracking-tighter">LOAN</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-20 relative z-10">
+                            <div class="space-y-10">
+                                <h4 class="text-3xl font-black text-slate-800 flex items-center gap-5">
+                                    <span class="w-12 h-12 bg-emerald-600 text-white rounded-[1.5rem] flex items-center justify-center text-sm shadow-xl italic font-serif">1</span>
+                                    Informasi Subjek
+                                </h4>
+                                <div class="space-y-8">
+                                    <div class="space-y-3">
+                                        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] ml-6 block">Nama Lengkap Peminjam</label>
+                                        <div class="relative">
+                                            <input type="text" x-model="forms.loan.borrower" class="sw-input pl-14" placeholder="Ketik Nama (Manual Input)">
+                                            <span class="absolute left-6 top-4.5 text-xl opacity-30">👤</span>
+                                        </div>
+                                        <p class="text-[10px] text-slate-400 ml-6 italic font-medium">*Silakan ketik manual nama mahasiswa/pustakawan</p>
+                                    </div>
+                                    <div class="space-y-3">
+                                        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] ml-6 block">Aset Buku Digital</label>
+                                        <div class="relative">
+                                            <select x-model="forms.loan.bookId" class="sw-input pl-14 appearance-none cursor-pointer">
+                                                <option value="">Pilih Buku dari Database...</option>
+                                                <template x-for="b in db.books">
+                                                    <option :value="b.id" x-text="`${b.title} [${b.id}]`"></option>
+                                                </template>
+                                            </select>
+                                            <span class="absolute left-6 top-4.5 text-xl opacity-30">📚</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-10">
+                                <h4 class="text-3xl font-black text-slate-800 flex items-center gap-5">
+                                    <span class="w-12 h-12 bg-emerald-600 text-white rounded-[1.5rem] flex items-center justify-center text-sm shadow-xl italic font-serif">2</span>
+                                    Periode Aktivasi
+                                </h4>
+                                <div class="grid grid-cols-2 gap-8">
+                                    <div class="space-y-3">
+                                        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] ml-6 block">Tgl Pinjam</label>
+                                        <input type="date" x-model="forms.loan.startDate" class="sw-input">
+                                    </div>
+                                    <div class="space-y-3">
+                                        <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] ml-6 block">Batas Kembali</label>
+                                        <input type="date" x-model="forms.loan.endDate" class="sw-input">
+                                    </div>
+                                </div>
+                                <div class="bg-slate-900 p-10 rounded-[3rem] shadow-2xl mt-4 border border-white/5 relative group">
+                                    <div class="flex gap-8 relative z-10">
+                                        <div class="w-20 h-20 bg-emerald-500/10 rounded-[2rem] flex items-center justify-center text-4xl text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-500">🛡️</div>
+                                        <div>
+                                            <p class="text-white font-black text-lg uppercase tracking-widest">Protocol Jaminan</p>
+                                            <p class="text-slate-400 text-[11px] mt-2 leading-relaxed font-medium">Setiap keterlambatan pengembalian akan dikenakan sanksi administrasi sebesar <span class="text-emerald-500 font-black">Rp 5.000 / hari</span> sesuai aturan kampus.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-20 flex gap-8">
+                            <button @click="processLoan()" class="flex-1 py-7 bg-emerald-600 text-white font-black rounded-[2.5rem] shadow-2xl shadow-emerald-600/30 hover:bg-emerald-700 transform hover:scale-[1.02] transition-all active:scale-95 text-lg uppercase tracking-widest">OTORISASI PEMINJAMAN</button>
+                            <button @click="resetForm('loan')" class="px-16 py-7 bg-slate-100 text-slate-400 font-black rounded-[2.5rem] hover:bg-slate-200 transition-all text-lg uppercase tracking-widest">RESET</button>
+                        </div>
+                    </div>
+
+                    <div class="glass-card rounded-[4rem] overflow-hidden shadow-2xl">
+                        <div class="p-10 bg-slate-900 text-white flex justify-between items-center">
+                            <h4 class="text-2xl font-black tracking-tighter">Daftar Peminjaman Aktif</h4>
+                            <span class="px-6 py-2.5 bg-emerald-500 rounded-full text-[11px] font-black uppercase" x-text="`${db.loans.length} Transaksi`"></span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-slate-50 border-b border-slate-100">
+                                    <tr class="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                                        <th class="p-10">ID Transaksi</th>
+                                        <th class="p-10">Subjek Peminjam</th>
+                                        <th class="p-10">Katalog Buku</th>
+                                        <th class="p-10">Batas Waktu</th>
+                                        <th class="p-10">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <template x-for="l in db.loans" :key="l.id">
+                                        <tr class="hover:bg-slate-50/50 transition duration-300">
+                                            <td class="p-10 mono font-black text-emerald-600" x-text="'TRX-' + l.id"></td>
+                                            <td class="p-10">
+                                                <p class="font-black text-slate-800 text-lg" x-text="l.borrower"></p>
+                                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Manual Entry Member</p>
+                                            </td>
+                                            <td class="p-10 font-bold text-slate-600" x-text="getBookTitle(l.bookId)"></td>
+                                            <td class="p-10">
+                                                <span class="px-5 py-2 bg-rose-50 text-rose-600 rounded-full text-xs font-black" x-text="l.endDate"></span>
+                                            </td>
+                                            <td class="p-10">
+                                                <button @click="returnBook(l.id)" class="px-6 py-3 bg-slate-800 text-white text-[11px] font-black rounded-2xl hover:bg-emerald-600 transition duration-300 shadow-md">KEMBALIKAN</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="page === 'input-buku'" class="animate-slide grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    <div class="glass-card p-16 rounded-[4.5rem] space-y-12">
+                        <div>
+                            <h3 class="text-4xl font-black text-slate-800 tracking-tighter">Registrasi Katalog</h3>
+                            <p class="text-slate-400 font-medium mt-2">Daftarkan literatur baru ke dalam database terpusat.</p>
+                        </div>
+                        
+                        <div class="space-y-8">
+                            <div class="space-y-3">
+                                <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-6 block">Judul Literatur Utama</label>
+                                <input x-model="forms.book.title" type="text" class="sw-input" placeholder="Contoh: Robotika Lanjut UNY">
+                            </div>
+                            <div class="grid grid-cols-2 gap-8">
+                                <div class="space-y-3">
+                                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-6 block">Nama Penulis</label>
+                                    <input x-model="forms.book.author" type="text" class="sw-input" placeholder="Author">
+                                </div>
+                                <div class="space-y-3">
+                                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-6 block">Klasifikasi</label>
+                                    <select x-model="forms.book.category" class="sw-input">
+                                        <option value="Lainnya</option>
+                                        <option value="Agama">Ilmu Agama</option>
+                                        <option value="Fisika">Fisika Teknik</option>
+                                        <option value="Umum">Umum</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-8">
+                                <div class="space-y-3">
+                                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-6 block">Posisi Rak</label>
+                                    <input x-model="forms.book.shelf" type="text" class="sw-input font-mono uppercase" placeholder="BK-A1-01">
+                                </div>
+                                <div class="space-y-3">
+                                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-6 block">Jumlah Stok</label>
+                                    <input x-model="forms.book.stock" type="number" class="sw-input" placeholder="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button @click="saveBook()" class="w-full py-7 bg-slate-900 text-white font-black rounded-[3rem] shadow-2xl hover:bg-emerald-600 transition-all duration-700 text-lg uppercase tracking-widest">KOMIT KE DATABASE</button>
+                    </div>
+
+                    <div class="flex flex-col gap-12">
+                        <div class="glass-card p-16 rounded-[4.5rem] flex flex-col items-center justify-center text-center space-y-10 group">
+                            <div id="qrcode" class="transform group-hover:scale-[1.05] transition-all duration-700">
+                                <div class="w-[280px] h-[280px] bg-slate-50 rounded-[3rem] flex items-center justify-center border-4 border-dashed border-slate-200">
+                                    <span class="text-slate-300 font-bold uppercase tracking-widest text-[11px]">Sistem Label QR</span>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mb-3">Unique Identity Token</p>
+                                <h4 class="text-4xl font-black text-slate-800 mono tracking-tighter" x-text="activeQRID || 'ID-PENDING'"></h4>
+                            </div>
+                            <template x-if="activeQRID">
+                                <button @click="downloadLabel()" class="px-12 py-5 bg-emerald-100 text-emerald-700 rounded-[2rem] font-black text-[11px] uppercase tracking-widest hover:bg-emerald-200 transition-all shadow-md">Unduh Label PNG</button>
+                            </template>
+                        </div>
+                        
+                        <div class="glass-card p-10 rounded-[3rem] bg-emerald-600 text-white relative overflow-hidden shadow-2xl shadow-emerald-600/20">
+                            <div class="absolute -bottom-8 -right-8 opacity-20 rotate-12 pointer-events-none">
+                                <span class="text-9xl font-black italic">!</span>
+                            </div>
+                            <h4 class="text-xl font-black mb-4 flex items-center gap-3">💡 <span class="italic tracking-tighter">Tips!:</span></h4>
+                            <p class="text-[13px] font-semibold opacity-90 leading-relaxed italic">"Penyusunan kode rak berbasis sektor (BK-A1-01) memudahkan sistem sortir robotik di masa depan jika ingin mengintegrasikan hardware."</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="page === 'scanner'" class="animate-slide max-w-4xl mx-auto space-y-16">
+                    <div class="text-center">
+                        <h2 class="text-5xl font-black text-slate-800 tracking-tighter">Scanner Optik Lanjut</h2>
+                        <p class="text-slate-400 font-medium mt-4 uppercase text-xs tracking-[0.4em]">Deteksi Aset Real-time via Neural Scan</p>
+                    </div>
+
+                    <div class="relative max-w-xl mx-auto group">
+                        <div id="scanner-view" class="rounded-[6rem] overflow-hidden shadow-2xl border-[20px] border-white bg-slate-900 aspect-square relative transform group-hover:scale-[1.02] transition-all duration-700">
+                            <div class="absolute inset-0 z-10 pointer-events-none border-[60px] border-black/10"></div>
+                            <div class="absolute inset-x-0 top-1/2 h-0.5 bg-emerald-500 shadow-[0_0_30px_#10b981] animate-pulse z-20"></div>
+                            <div class="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
+                                <div class="w-[80%] h-[80%] border border-emerald-500 rounded-full animate-ping"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="absolute -bottom-10 left-1/2 -translate-x-1/2 bg-white px-12 py-6 rounded-[3rem] shadow-2xl flex items-center gap-8 z-30">
+                            <button @click="stopScanner()" class="w-16 h-16 bg-rose-50 text-rose-500 rounded-3xl hover:bg-rose-500 hover:text-white transition-all duration-500 flex items-center justify-center text-2xl shadow-sm">🛑</button>
+                            <div class="w-px h-12 bg-slate-100"></div>
+                            <span class="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Engine Active</span>
+                        </div>
+                    </div>
+
+                    <div class="glass-card p-16 rounded-[5rem] max-w-3xl mx-auto" x-show="scanResult.show">
+                        <div class="flex items-center gap-10">
+                            <div class="w-32 h-32 bg-emerald-100 rounded-[3rem] flex items-center justify-center text-6xl shadow-inner">📖</div>
+                            <div class="flex-1">
+                                <span class="bg-emerald-100 text-emerald-600 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest">Identifikasi Sukses</span>
+                                <h3 class="text-4xl font-black text-slate-800 mt-4 tracking-tighter" x-text="scanResult.data.title"></h3>
+                                <p class="text-slate-500 font-bold mt-2 text-lg" x-text="'Oleh: ' + scanResult.data.author"></p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-8 mt-16 pt-16 border-t border-slate-100">
+                            <div class="text-center">
+                                <p class="text-[10px] font-black text-slate-400 uppercase mb-3">ID Lokasi</p>
+                                <p class="font-black text-slate-700 mono text-lg" x-text="scanResult.data.shelf"></p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-[10px] font-black text-slate-400 uppercase mb-3">Kategori</p>
+                                <p class="font-black text-slate-700 text-lg" x-text="scanResult.data.category"></p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-[10px] font-black text-slate-400 uppercase mb-3">Status Stok</p>
+                                <span class="text-[12px] font-black text-emerald-500 uppercase px-4 py-1 bg-emerald-50 rounded-full" x-text="scanResult.data.stock + ' Tersedia'"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="page === 'database'" class="animate-slide space-y-12">
+                    <div class="flex flex-col xl:flex-row justify-between items-end gap-10">
+                        <div class="max-w-2xl w-full relative group">
+                            <input x-model="searchQuery" type="text" class="w-full pl-20 pr-10 py-6 bg-white rounded-[3rem] border-none outline-none shadow-sm focus:ring-8 focus:ring-emerald-500/5 font-bold text-slate-600 placeholder:text-slate-300 transition-all text-lg" placeholder="Cari Judul, Penulis, atau Token Digital...">
+                            <span class="absolute left-8 top-6 text-3xl opacity-20 group-focus-within:opacity-100 transition duration-500">🔍</span>
+                        </div>
+                        <div class="flex gap-6">
+                            <button @click="exportDB()" class="px-10 py-6 bg-white border border-slate-200 rounded-[2.5rem] font-black text-[11px] uppercase tracking-widest hover:shadow-xl hover:-translate-y-1 transition-all duration-500">Ekspor JSON</button>
+                            <button @click="page = 'input-buku'" class="px-10 py-6 bg-emerald-600 text-white rounded-[2.5rem] font-black text-[11px] uppercase tracking-widest shadow-2xl shadow-emerald-500/20 hover:bg-emerald-700 hover:-translate-y-1 transition-all duration-500">+ Koleksi Baru</button>
+                        </div>
+                    </div>
+
+                    <div class="glass-card rounded-[5rem] overflow-hidden shadow-2xl border border-white">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-slate-900 text-white/40">
+                                    <tr class="text-[11px] font-black uppercase tracking-[0.4em]">
+                                        <th class="p-12">ID Aset</th>
+                                        <th class="p-12">Detail Metadata</th>
+                                        <th class="p-12">Kategori</th>
+                                        <th class="p-12">Inventori Rak</th>
+                                        <th class="p-12">Kontrol</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <template x-for="b in filteredBooks()" :key="b.id">
+                                        <tr class="group hover:bg-slate-50/80 transition-all duration-500">
+                                            <td class="p-12">
+                                                <span class="mono font-black text-emerald-600 bg-emerald-50 px-5 py-2.5 rounded-2xl text-xs" x-text="b.id"></span>
+                                            </td>
+                                            <td class="p-12">
+                                                <h5 class="font-black text-slate-800 text-xl group-hover:text-emerald-600 transition duration-500" x-text="b.title"></h5>
+                                                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-2" x-text="b.author"></p>
+                                            </td>
+                                            <td class="p-12">
+                                                <span class="text-[10px] font-black text-slate-500 bg-slate-100 px-5 py-2.5 rounded-full uppercase tracking-tighter" x-text="b.category"></span>
+                                            </td>
+                                            <td class="p-12">
+                                                <div class="flex items-center gap-5">
+                                                    <div class="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                                    <div>
+                                                        <p class="text-lg font-black text-slate-700 mono" x-text="b.shelf"></p>
+                                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Stok: <span x-text="b.stock"></span></p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="p-12 opacity-0 group-hover:opacity-100 transition duration-500">
+                                                <div class="flex gap-4">
+                                                    <button @click="deleteBook(b.id)" class="w-14 h-14 bg-rose-50 text-rose-500 rounded-[1.5rem] flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm">🗑️</button>
+                                                    <button @click="showBookQR(b.id)" class="w-14 h-14 bg-slate-50 text-slate-400 rounded-[1.5rem] flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all shadow-sm">🔍</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="page === 'analisis'" class="animate-slide space-y-12">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                        <div class="glass-card p-16 rounded-[4.5rem]">
+                            <h3 class="text-3xl font-black mb-12">Dominasi Kategori</h3>
+                            <div class="h-[400px]">
+                                <canvas id="chartCategory"></canvas>
+                            </div>
+                        </div>
+                        <div class="glass-card p-16 rounded-[4.5rem] flex flex-col justify-center text-center">
+                            <div class="text-9xl mb-10">📈</div>
+                            <h4 class="text-4xl font-black text-slate-800">Growth Analysis</h4>
+                            <p class="text-slate-400 mt-6 text-lg max-w-md mx-auto leading-relaxed">Sistem mendeteksi pertumbuhan koleksi sebesar <span class="text-emerald-500 font-black">24%</span> dalam 30 hari terakhir. Performa optimal.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="page === 'logs'" class="animate-slide">
+                    <div class="glass-card p-12 rounded-[4rem]">
+                        <div class="flex justify-between items-center mb-12">
+                            <h3 class="text-3xl font-black tracking-tight text-slate-800">System Audit Trail</h3>
+                            <button @click="clearLogs()" class="text-xs font-black text-rose-500 uppercase tracking-widest hover:underline">Hapus Semua Log</button>
+                        </div>
+                        <div class="space-y-6">
+                            <template x-for="log in db.logs.slice().reverse()">
+                                <div class="flex items-center gap-8 p-6 rounded-3xl bg-slate-50/50 border border-slate-100 hover:bg-white transition duration-300 shadow-sm">
+                                    <span class="text-3xl" x-text="log.icon"></span>
+                                    <div class="flex-1">
+                                        <p class="font-bold text-slate-700 text-lg" x-text="log.msg"></p>
+                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1" x-text="log.time"></p>
+                                    </div>
+                                    <span class="px-4 py-1.5 bg-emerald-100 text-emerald-600 rounded-lg text-[10px] font-black uppercase">Success</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+    </div>
+
+    <script>
+        function swLibrary() {
+            return {
+                page: 'dashboard',
+                auth: { isLoggedIn: false, userId: '', password: '', user: '' },
+                db: { books: [], loans: [], logs: [] },
+                forms: {
+                    book: { title: '', author: '', category: 'Lainnya', shelf: '', stock: 0 },
+                    loan: { borrower: '', bookId: '', startDate: '', endDate: '' }
+                },
+                activeQRID: '',
+                searchQuery: '',
+                currentTimeStr: new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }),
+                scanResult: { show: false, data: {} },
+                scanner: null,
+
+                initSystem() {
+                    this.loadDB();
+                    this.updateClock();
+                    if (this.db.books.length === 0) this.seedInitial();
+                    this.initAllCharts();
+                    
+                    // Add default date to loan form
+                    const today = new Date().toISOString().split('T')[0];
+                    this.forms.loan.startDate = today;
+                },
+
+                loadDB() {
+                    const saved = localStorage.getItem('sw_lib_ultimate_v5');
+                    if (saved) this.db = JSON.parse(saved);
+                },
+
+                saveDB() {
+                    localStorage.setItem('sw_lib_ultimate_v5', JSON.stringify(this.db));
+                },
+
+                login() {
+                    const users = { 'jafar': 'uny2026', 'admin': 'admin123', 'maryono': 'borobudur' };
+                    if (users[this.auth.userId] === this.auth.password) {
+                        this.auth.isLoggedIn = true;
+                        this.auth.user = this.auth.userId;
+                        this.addLog(`Sesi dimulai oleh operator: ${this.auth.user}`, '🔓');
+                        
+                        Swal.fire({
+                            title: 'AUTHENTICATED',
+                            text: `Selamat datang kembali, ${this.auth.user}`,
+                            icon: 'success',
+                            confirmButtonColor: '#059669',
+                            borderRadius: '30px'
+                        });
+                        
+                        setTimeout(() => this.initAllCharts(), 600);
+                    } else {
+                        Swal.fire('GAGAL', 'Identitas atau Kunci Keamanan salah.', 'error');
+                    }
+                },
+
+                logout() {
+                    this.auth.isLoggedIn = false;
+                    this.auth.userId = '';
+                    this.auth.password = '';
+                },
+
+                seedInitial() {
+                    this.db.books = [
+                        { id: 'BK-7701', title: 'Sistem Kontrol Mekatronika', author: 'Dr. Maryono', category: 'Mekatronika', shelf: 'A-01-01', stock: 5 },
+                        { id: 'BK-1209', title: 'Fisika Dasar untuk Teknik', author: 'Halliday Resnick', category: 'Fisika', shelf: 'C-12-05', stock: 12 },
+                        { id: 'BK-9982', title: 'Clean Code: Professionalism', author: 'Robert C. Martin', category: 'Umum', shelf: 'D-02-10', stock: 3 }
+                    ];
+                    this.saveDB();
+                },
+
+                saveBook() {
+                    if (!this.forms.book.title || !this.forms.book.author) return Swal.fire('Error', 'Data buku belum lengkap.', 'warning');
+                    
+                    const id = 'BK-' + Math.floor(Math.random() * 9000 + 1000);
+                    const newBook = { id, ...this.forms.book };
+                    
+                    this.db.books.push(newBook);
+                    this.addLog(`Koleksi baru didaftarkan: ${newBook.title}`, '📥');
+                    this.saveDB();
+                    
+                    this.activeQRID = id;
+                    this.generateQR(id);
+                    
+                    Swal.fire('BERHASIL', 'Buku telah masuk database digital.', 'success');
+                    this.resetForm('book');
+                },
+
+                processLoan() {
+                    const f = this.forms.loan;
+                    if (!f.borrower || !f.bookId || !f.startDate || !f.endDate) {
+                        return Swal.fire('PERINGATAN', 'Data peminjaman manual tidak lengkap.', 'warning');
+                    }
+
+                    const newLoan = { id: Date.now(), ...f };
+                    this.db.loans.push(newLoan);
+                    this.addLog(`Peminjaman: ${f.borrower} meminjam ${this.getBookTitle(f.bookId)}`, '📋');
+                    this.saveDB();
+                    
+                    Swal.fire('SUKSES', 'Transaksi manual telah direkam.', 'success');
+                    this.resetForm('loan');
+                },
+
+                returnBook(id) {
+                    this.db.loans = this.db.loans.filter(l => l.id !== id);
+                    this.addLog(`Pengembalian aset TRX-${id} selesai.`, '🔄');
+                    this.saveDB();
+                    Swal.fire('DITERIMA', 'Aset kembali ke inventori.', 'info');
+                },
+
+                deleteBook(id) {
+                    Swal.fire({
+                        title: 'Hapus Koleksi?',
+                        text: "Data akan dihapus permanen dari database.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, Hapus',
+                        confirmButtonColor: '#e11d48'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            this.db.books = this.db.books.filter(b => b.id !== id);
+                            this.addLog(`Penghapusan aset: ${id}`, '🗑️');
+                            this.saveDB();
+                        }
+                    });
+                },
+
+                filteredBooks() {
+                    const q = this.searchQuery.toLowerCase();
+                    return this.db.books.filter(b => 
+                        b.title.toLowerCase().includes(q) || 
+                        b.id.toLowerCase().includes(q) || 
+                        b.author.toLowerCase().includes(q)
+                    );
+                },
+
+                getBookTitle(id) {
+                    const b = this.db.books.find(x => x.id === id);
+                    return b ? b.title : 'Judul Tidak Dikenal';
+                },
+
+                getStats() {
+                    return [
+                        { label: 'Total Aset', value: this.db.books.length, icon: '📚', bg: 'bg-emerald-100', color: 'bg-emerald-500', percent: 85 },
+                        { label: 'Peminjaman', value: this.db.loans.length, icon: '📋', bg: 'bg-blue-100', color: 'bg-blue-500', percent: 45 },
+                        { label: 'Kategori', value: 4, icon: '🏷️', bg: 'bg-amber-100', color: 'bg-amber-500', percent: 65 },
+                        { label: 'Health', value: '100%', icon: '🛡️', bg: 'bg-rose-100', color: 'bg-rose-500', percent: 100 }
+                    ];
+                },
+
+                addLog(msg, icon) {
+                    const time = new Date().toLocaleTimeString('id-ID');
+                    this.db.logs.push({ msg, icon, time });
+                    if (this.db.logs.length > 100) this.db.logs.shift();
+                },
+
+                getIcon(p) {
+                    const i = { dashboard: '⚡', sirkulasi: '📋', 'input-buku': '📥', scanner: '🔍', database: '💾', analisis: '📊', logs: '📜' };
+                    return i[p] || '⚙️';
+                },
+
+                resetForm(t) {
+                    if (t === 'book') this.forms.book = { title: '', author: '', category: 'Mekatronika', shelf: '', stock: 0 };
+                    if (t === 'loan') {
+                        this.forms.loan = { borrower: '', bookId: '', startDate: '', endDate: '' };
+                        this.forms.loan.startDate = new Date().toISOString().split('T')[0];
+                    }
+                },
+
+                generateQR(text) {
+                    const container = document.getElementById('qrcode');
+                    container.innerHTML = '';
+                    new QRCode(container, {
+                        text: text,
+                        width: 280,
+                        height: 280,
+                        colorDark : "#0f172a",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+                },
+
+                showBookQR(id) {
+                    this.page = 'input-buku';
+                    this.activeQRID = id;
+                    setTimeout(() => this.generateQR(id), 500);
+                },
+
+                updateClock() {
+                    setInterval(() => {
+                        const el = document.getElementById('realtime-clock');
+                        if (el) el.innerText = new Date().toLocaleTimeString('id-ID');
+                    }, 1000);
+                },
+
+                initAllCharts() {
+                    const ctxD = document.getElementById('chartDashboard');
+                    const ctxC = document.getElementById('chartCategory');
+                    if (!ctxD || !ctxC) return;
+
+                    // Chart Dashboard
+                    if (window.chartD) window.chartD.destroy();
+                    window.chartD = new Chart(ctxD, {
+                        type: 'line',
+                        data: {
+                            labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+                            datasets: [{
+                                label: 'Sirkulasi Aset',
+                                data: [12, 19, 15, 25, 35, 10, 8],
+                                borderColor: '#10b981',
+                                borderWidth: 6,
+                                fill: true,
+                                tension: 0.5,
+                                backgroundColor: 'rgba(16, 185, 129, 0.05)'
+                            }]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { display: false }, x: { grid: { display: false } } }
+                        }
+                    });
+
+                    // Chart Category
+                    if (window.chartC) window.chartC.destroy();
+                    window.chartC = new Chart(ctxC, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Mekatronika', 'Fisika', 'Agama', 'Lainnya'],
+                            datasets: [{
+                                data: [40, 20, 25, 15],
+                                backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#64748b'],
+                                borderWidth: 0,
+                                hoverOffset: 20
+                            }]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            cutout: '70%',
+                            plugins: { legend: { position: 'bottom', labels: { font: { weight: 'bold' } } } }
+                        }
+                    });
+                },
+
+                initScanner() {
+                    this.page = 'scanner';
+                    this.scanResult.show = false;
+                    setTimeout(() => {
+                        this.scanner = new Html5Qrcode("scanner-view");
+                        this.scanner.start(
+                            { facingMode: "environment" },
+                            { fps: 20, qrbox: 280 },
+                            (text) => {
+                                const b = this.db.books.find(x => x.id === text);
+                                if (b) {
+                                    this.scanResult.data = b;
+                                    this.scanResult.show = true;
+                                    this.addLog(`Scan Berhasil: ${b.title}`, '🔍');
+                                    this.scanner.stop();
+                                }
+                            }
+                        ).catch(err => console.error(err));
+                    }, 600);
+                },
+
+                stopScanner() {
+                    if (this.scanner) this.scanner.stop();
+                    this.page = 'dashboard';
+                },
+
+                clearLogs() {
+                    this.db.logs = [];
+                    this.saveDB();
+                },
+
+                exportDB() {
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.db));
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href", dataStr);
+                    downloadAnchorNode.setAttribute("download", "sw_lib_backup.json");
+                    document.body.appendChild(downloadAnchorNode);
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
